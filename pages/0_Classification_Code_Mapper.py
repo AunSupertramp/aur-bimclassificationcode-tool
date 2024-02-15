@@ -1,43 +1,32 @@
 import streamlit as st
 import pandas as pd
 
-# Function to load and merge data
-def load_and_prepare_data(uni_format_file, master_format_file):
-    # Load CSV files
-    uni_format_df = pd.read_csv(uni_format_file)
-    master_format_df = pd.read_csv(master_format_file)
-    
-    # Normalize the RelatedMasterFormatCodes column to have a single code per row
-    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
-    uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
-    
-    # Merge the dataframes on the MasterFormat codes
-    merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
-    return merged_df
+# Function to load data
+def load_data():
+    uni_format_df = pd.read_csv('UniFormat_MasterFormat.csv')
+    master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
+    return uni_format_df, master_format_df
 
-# Load and prepare data
-data = load_and_prepare_data('UniFormat_MasterFormat.csv', 'MasterFormat_Descriptions.csv')
+uni_format_df, master_format_df = load_data()
 
-# Streamlit UI
-st.title('UniFormat to MasterFormat Mapper')
+# Layout the sidebar with UniFormat selection
+st.sidebar.title("UniFormat Codes")
+# Assuming the 'UniFormatCode' column contains unique values
+uni_format_selection = st.sidebar.selectbox("Choose a UniFormat Code", uni_format_df['UniFormatCode'].unique())
 
-# Display UniFormat codes with descriptions for selection
-uni_format_options = data[['UniFormatCode', 'Description_x']].drop_duplicates()
-selected_uni_format = st.selectbox('Select a UniFormat Code', options=uni_format_options.apply(lambda x: f"{x['UniFormatCode']} - {x['Description_x']}", axis=1))
+# Main area
+st.title("Welcome to BIM QTO Tools")
+st.markdown("## Related MasterFormat Codes")
 
-# Extract the selected UniFormat code
-selected_code = selected_uni_format.split(' - ')[0]
+# Find related MasterFormat codes
+selected_uni_format = uni_format_df[uni_format_df['UniFormatCode'] == uni_format_selection]
+related_codes = selected_uni_format['RelatedMasterFormatCodes'].iloc[0].split(';')
 
-# Filter data for selected UniFormat code
-filtered_data = data[data['UniFormatCode'] == selected_code]
-
-if not filtered_data.empty:
-    st.subheader('Related MasterFormat Codes and Descriptions:')
-    # Group by UniFormatCode to get a list of related MasterFormat codes and descriptions
-    grouped = filtered_data.groupby('UniFormatCode')
-    for name, group in grouped:
-        st.write(f"UniFormat {name}: {group.iloc[0]['Description_x']}")
-        for _, row in group.iterrows():
-            st.text(f"{row['RelatedMasterFormatCodes']} - {row['Description_y']}")
+# Display related codes and descriptions
+if related_codes:
+    for code in related_codes:
+        # Assuming there's one row per MasterFormatCode in the master_format_df
+        description = master_format_df[master_format_df['MasterFormatCode'] == code.strip()]['Description'].iloc[0]
+        st.markdown(f"**{code.strip()}**: {description}")
 else:
-    st.write("No related MasterFormat codes found for the selected UniFormat code.")
+    st.write("No related MasterFormat codes found.")
