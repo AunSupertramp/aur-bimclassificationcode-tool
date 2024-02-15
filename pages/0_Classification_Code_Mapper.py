@@ -1,49 +1,40 @@
 import streamlit as st
 import pandas as pd
 
-# Load your data
-uni_format_df = pd.read_csv('UniFormat_MasterFormat.csv')
-master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
+# Assuming your csv files are named 'UniFormat_MasterFormat.csv' and 'MasterFormat_Descriptions.csv'
+# and are structured correctly according to your previous messages.
 
-# Normalize the RelatedMasterFormatCodes column to have a single code per row
-uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
-uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
-uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.strip()
+def load_data():
+    uni_format = pd.read_csv('UniFormat_MasterFormat.csv')
+    master_format = pd.read_csv('MasterFormat_Descriptions.csv')
+    # Normalize the RelatedMasterFormatCodes to be a list of codes
+    uni_format['RelatedMasterFormatCodes'] = uni_format['RelatedMasterFormatCodes'].str.split(';')
+    uni_format = uni_format.explode('RelatedMasterFormatCodes').reset_index(drop=True)
+    # Merge on the MasterFormat codes
+    merged = pd.merge(uni_format, master_format, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
+    return uni_format.drop_duplicates(), merged
 
-# Merge the dataframes on the MasterFormat codes
-merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
+# Load the data
+uni_format_df, merged_df = load_data()
 
 # Streamlit UI layout
 st.title("BIM QTO Tools - Code Mapper")
 
-# Splitting the layout into two columns
-left_column, right_column = st.columns([1, 2])
+# Display UniFormat codes and descriptions in a table
+st.subheader("UniFormat Codes")
+uni_format_table = uni_format_df[['UniFormatCode', 'Description']]
 
-selected_uni_format_code = None
+# Using a button to select the UniFormat code
+selected_code = None
+for index, row in uni_format_table.iterrows():
+    if st.button(f"{row['UniFormatCode']} - {row['Description']}"):
+        selected_code = row['UniFormatCode']
 
-# Left Column for UniFormat Code selection
-with left_column:
-    st.subheader("UniFormat Codes")
-    # Display a static table of UniFormat codes and descriptions
-    st.table(uni_format_df[['UniFormatCode', 'Description']].drop_duplicates())
-
-    # Place buttons in front of each UniFormat code to allow for selection
-    for i, row in uni_format_df[['UniFormatCode', 'Description']].drop_duplicates().iterrows():
-        if st.button(f"Select {row['UniFormatCode']}"):
-            selected_uni_format_code = row['UniFormatCode']
-
-# Right Column for displaying related MasterFormat codes
-with right_column:
-    st.subheader("Related MasterFormat Codes")
-    if selected_uni_format_code:
-        st.write(f"Related codes for {selected_uni_format_code}:")
-        # Filter the data for the selected UniFormat code
-        related_codes = merged_df[merged_df['UniFormatCode'] == selected_uni_format_code]
-        for _, related_row in related_codes.iterrows():
-            code = related_row['RelatedMasterFormatCodes']
-            description = related_row['Description']  # Adjust column name if necessary
-            st.markdown(f"**{code}**: {description}")
-    else:
-        st.write("No UniFormat code selected. Please select a code from the left column.")
-
-# Note: Replace 'Description' with the correct column names from your 'master_format_df' if they differ.
+# If a code is selected, display the related MasterFormat codes
+if selected_code:
+    st.subheader(f"Related MasterFormat Codes for {selected_code}")
+    related_codes = merged_df[merged_df['UniFormatCode'] == selected_code]
+    for _, rel_row in related_codes.iterrows():
+        st.text(f"{rel_row['RelatedMasterFormatCodes']} - {rel_row['Description']}")
+else:
+    st.subheader("Select a UniFormat code from the list above")
