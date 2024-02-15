@@ -8,11 +8,13 @@ def load_and_prepare_data():
     master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
     
     # Normalize the 'RelatedMasterFormatCodes' to be a list of codes
-    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
-    uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
+    uni_format_df = uni_format_df.assign(RelatedMasterFormatCodes=uni_format_df['RelatedMasterFormatCodes'].str.split(';')).explode('RelatedMasterFormatCodes').reset_index(drop=True)
+    
+    # Strip whitespace that might be around the codes after splitting
+    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.strip()
     
     # Merge the dataframes on the MasterFormat codes
-    merged_df = pd.merge(uni_format_df, master_format_df, how='left', on='MasterFormatCode')
+    merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
     return merged_df
 
 # Load and prepare data
@@ -21,25 +23,19 @@ data = load_and_prepare_data()
 # Streamlit UI layout
 st.title("BIM QTO Tools - Code Mapper")
 
-# Column layout for UniFormat selection and Related codes display
-col1, col2 = st.columns([2, 3])
+# UniFormat Code selection
+st.header("UniFormat Codes")
+selected_uni_format = st.selectbox("Select a UniFormat Code", options=data['UniFormatCode'].unique())
 
-# Column for UniFormat Code selection
-with col1:
-    st.header("UniFormat Codes")
-    selected_uni_format = st.selectbox("Select a UniFormat Code", options=data['UniFormatCode'].unique())
+# Display related MasterFormat codes
+st.header("Related MasterFormat Codes")
+# Filter data for selected UniFormat code
+filtered_data = data[data['UniFormatCode'] == selected_uni_format]
 
-# Column for displaying related MasterFormat codes
-with col2:
-    st.header("Related MasterFormat Codes")
-    # Filter data for selected UniFormat code
-    filtered_data = data[data['UniFormatCode'] == selected_uni_format]
-    
-    if not filtered_data.empty:
-        for _, row in filtered_data.iterrows():
-            code = row['RelatedMasterFormatCodes']
-            description = row['Description']
-            st.markdown(f"**{code}**: {description}")
-    else:
-        st.write("No related MasterFormat codes found for the selected UniFormat code.")
- 
+if not filtered_data.empty:
+    for _, row in filtered_data.iterrows():
+        code = row['RelatedMasterFormatCodes']
+        description = row['Description']  # Ensure this column name matches your MasterFormat_Descriptions.csv file
+        st.markdown(f"**{code}**: {description}")
+else:
+    st.write("No related MasterFormat codes found for the selected UniFormat code.")
