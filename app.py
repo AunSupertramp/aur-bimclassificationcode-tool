@@ -1,43 +1,42 @@
 import streamlit as st
-import pandas as pd
 
-# Function to load and merge data
-def load_and_prepare_data(uni_format_file, master_format_file):
-    # Load CSV files
-    uni_format_df = pd.read_csv(uni_format_file)
-    master_format_df = pd.read_csv(master_format_file)
+# Define the main app function
+def main():
+    """BIM QTO Tools Landing Page"""
     
-    # Normalize the RelatedMasterFormatCodes column to have a single code per row
-    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
-    uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
-    
-    # Merge the dataframes on the MasterFormat codes
-    merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
-    return merged_df
+    # App title and description
+    st.title('Welcome to BIM QTO Tools')
+    st.markdown('''
+        BIM QTO Tools is a suite of utilities designed to assist professionals in the Building Information Modeling (BIM) 
+        and Quantity Take-Off (QTO) processes. This platform offers tools like Code Mapper and other resources to streamline 
+        your workflow and enhance productivity.
+        
+        **Features include:**
+        
+        - **Code Mapper**: Easily map UniFormat codes to MasterFormat codes.
+        - **QTO Calculator**: Quickly calculate quantities based on BIM models.
+        - **... and more!**
 
-# Load and prepare data
-data = load_and_prepare_data('UniFormat_MasterFormat.csv', 'MasterFormat_Descriptions.csv')
+        Get started by selecting a tool from the left sidebar.
+    ''')
 
-# Streamlit UI
-st.title('UniFormat to MasterFormat Mapper')
+    # Sidebar navigation
+    st.sidebar.title('Navigation')
+    page = st.sidebar.radio('Select a page:', ['Home', 'Code Mapper', 'QTO Calculator', 'About'])
 
-# Display UniFormat codes with descriptions for selection
-uni_format_options = data[['UniFormatCode', 'Description_x']].drop_duplicates()
-selected_uni_format = st.selectbox('Select a UniFormat Code', options=uni_format_options.apply(lambda x: f"{x['UniFormatCode']} - {x['Description_x']}", axis=1))
+    # Page routing
+    if page == 'Home':
+        st.sidebar.write('You are on the Home page.')
+        # Further home page content goes here
+    elif page == 'Code Mapper':
+        st.sidebar.write('Navigate to the Code Mapper tool.')
+        # Code to display the Code Mapper tool goes here
+    elif page == 'QTO Calculator':
+        st.sidebar.write('Navigate to the QTO Calculator tool.')
+        # Code to display the QTO Calculator goes here
+    elif page == 'About':
+        st.sidebar.write('Learn more about BIM QTO Tools.')
+        # Code to display information about the app goes here
 
-# Extract the selected UniFormat code
-selected_code = selected_uni_format.split(' - ')[0]
-
-# Filter data for selected UniFormat code
-filtered_data = data[data['UniFormatCode'] == selected_code]
-
-if not filtered_data.empty:
-    st.subheader('Related MasterFormat Codes and Descriptions:')
-    # Group by UniFormatCode to get a list of related MasterFormat codes and descriptions
-    grouped = filtered_data.groupby('UniFormatCode')
-    for name, group in grouped:
-        st.write(f"UniFormat {name}: {group.iloc[0]['Description_x']}")
-        for _, row in group.iterrows():
-            st.text(f"{row['RelatedMasterFormatCodes']} - {row['Description_y']}")
-else:
-    st.write("No related MasterFormat codes found for the selected UniFormat code.")
+if __name__ == "__main__":
+    main()
