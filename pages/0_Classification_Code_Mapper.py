@@ -17,26 +17,33 @@ merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='Relat
 st.title("BIM QTO Tools - Code Mapper")
 
 # Splitting the layout into two columns
-left_column, right_column = st.columns(2)
+left_column, right_column = st.columns([1, 2])
+
+selected_uni_format_code = None
 
 # Left Column for UniFormat Code selection
 with left_column:
     st.subheader("UniFormat Codes")
-    # Display UniFormat codes and descriptions in a table
-    # This creates an interactive table where you can select rows
-    selected_indices = st.multiselect("Select a UniFormat Code", options=merged_df.index, format_func=lambda x: f"{merged_df.loc[x, 'UniFormatCode']} - {merged_df.loc[x, 'Description_x']}")
-    selected_rows = merged_df.loc[selected_indices]
+    # Display a static table of UniFormat codes and descriptions
+    st.table(uni_format_df[['UniFormatCode', 'Description']].drop_duplicates())
+
+    # Place buttons in front of each UniFormat code to allow for selection
+    for i, row in uni_format_df[['UniFormatCode', 'Description']].drop_duplicates().iterrows():
+        if st.button(f"Select {row['UniFormatCode']}"):
+            selected_uni_format_code = row['UniFormatCode']
 
 # Right Column for displaying related MasterFormat codes
 with right_column:
     st.subheader("Related MasterFormat Codes")
-    # Check if there's any selection
-    if not selected_rows.empty:
-        for _, row in selected_rows.iterrows():
-            code = row['RelatedMasterFormatCodes']
-            description = row['Description_y']  # Ensure this column name matches the description column in your MasterFormat descriptions CSV
+    if selected_uni_format_code:
+        st.write(f"Related codes for {selected_uni_format_code}:")
+        # Filter the data for the selected UniFormat code
+        related_codes = merged_df[merged_df['UniFormatCode'] == selected_uni_format_code]
+        for _, related_row in related_codes.iterrows():
+            code = related_row['RelatedMasterFormatCodes']
+            description = related_row['Description']  # Adjust column name if necessary
             st.markdown(f"**{code}**: {description}")
     else:
-        st.write("No UniFormat code selected.")
+        st.write("No UniFormat code selected. Please select a code from the left column.")
 
-# Make sure to adjust the column names 'Description_x' and 'Description_y' if they differ in your CSV files.
+# Note: Replace 'Description' with the correct column names from your 'master_format_df' if they differ.
