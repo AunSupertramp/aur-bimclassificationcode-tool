@@ -8,10 +8,9 @@ def load_and_prepare_data():
     master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
     
     # Normalize the 'RelatedMasterFormatCodes' to be a list of codes
-    uni_format_df = uni_format_df.assign(RelatedMasterFormatCodes=uni_format_df['RelatedMasterFormatCodes'].str.split(';')).explode('RelatedMasterFormatCodes').reset_index(drop=True)
-    
-    # Strip whitespace that might be around the codes after splitting
-    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.strip()
+    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
+    uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
+    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.strip()  # Strip any whitespace
     
     # Merge the dataframes on the MasterFormat codes
     merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
@@ -24,18 +23,19 @@ data = load_and_prepare_data()
 st.title("BIM QTO Tools - Code Mapper")
 
 # UniFormat Code selection
-st.header("UniFormat Codes")
 selected_uni_format = st.selectbox("Select a UniFormat Code", options=data['UniFormatCode'].unique())
 
 # Display related MasterFormat codes
-st.header("Related MasterFormat Codes")
 # Filter data for selected UniFormat code
 filtered_data = data[data['UniFormatCode'] == selected_uni_format]
 
 if not filtered_data.empty:
+    # Iterate over each row and display the code and description
     for _, row in filtered_data.iterrows():
         code = row['RelatedMasterFormatCodes']
-        description = row['Description']  # Ensure this column name matches your MasterFormat_Descriptions.csv file
+        # We use 'Description_y' if 'Description' is not directly accessible due to the merge
+        # If 'Description_y' is not correct, check the actual column name post-merge
+        description = row.get('Description_y', 'No description available')
         st.markdown(f"**{code}**: {description}")
 else:
     st.write("No related MasterFormat codes found for the selected UniFormat code.")
