@@ -1,40 +1,41 @@
 import streamlit as st
 import pandas as pd
 
-# Assuming your csv files are named 'UniFormat_MasterFormat.csv' and 'MasterFormat_Descriptions.csv'
-# and are structured correctly according to your previous messages.
+# Load your data
+uni_format_df = pd.read_csv('UniFormat_MasterFormat.csv')
+master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
 
-def load_data():
-    uni_format = pd.read_csv('UniFormat_MasterFormat.csv')
-    master_format = pd.read_csv('MasterFormat_Descriptions.csv')
-    # Normalize the RelatedMasterFormatCodes to be a list of codes
-    uni_format['RelatedMasterFormatCodes'] = uni_format['RelatedMasterFormatCodes'].str.split(';')
-    uni_format = uni_format.explode('RelatedMasterFormatCodes').reset_index(drop=True)
-    # Merge on the MasterFormat codes
-    merged = pd.merge(uni_format, master_format, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
-    return uni_format.drop_duplicates(), merged
+# Normalize the RelatedMasterFormatCodes column to have a single code per row
+uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
+uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
+uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.strip()
 
-# Load the data
-uni_format_df, merged_df = load_data()
+# Merge the dataframes on the MasterFormat codes
+merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
 
 # Streamlit UI layout
 st.title("BIM QTO Tools - Code Mapper")
 
 # Display UniFormat codes and descriptions in a table
 st.subheader("UniFormat Codes")
-uni_format_table = uni_format_df[['UniFormatCode', 'Description']]
+unique_uni_codes = uni_format_df[['UniFormatCode', 'Description']].drop_duplicates().reset_index(drop=True)
 
-# Using a button to select the UniFormat code
-selected_code = None
-for index, row in uni_format_table.iterrows():
-    if st.button(f"{row['UniFormatCode']} - {row['Description']}"):
-        selected_code = row['UniFormatCode']
+# Create an empty placeholder for displaying related codes
+related_codes_placeholder = st.empty()
 
-# If a code is selected, display the related MasterFormat codes
-if selected_code:
-    st.subheader(f"Related MasterFormat Codes for {selected_code}")
-    related_codes = merged_df[merged_df['UniFormatCode'] == selected_code]
-    for _, rel_row in related_codes.iterrows():
-        st.text(f"{rel_row['RelatedMasterFormatCodes']} - {rel_row['Description']}")
-else:
-    st.subheader("Select a UniFormat code from the list above")
+# Variable to store the selected UniFormat code
+selected_uni_format_code = None
+
+# Display buttons for each UniFormat code to allow for selection
+for index, row in unique_uni_codes.iterrows():
+    if st.button(f"{row['UniFormatCode']} - {row['Description']}", key=f"btn_{index}"):
+        selected_uni_format_code = row['UniFormatCode']
+        related_codes_placeholder.subheader(f"Related MasterFormat Codes for {selected_uni_format_code}:")
+        # Filter the data for the selected UniFormat code
+        related_codes = merged_df[merged_df['UniFormatCode'] == selected_uni_format_code]
+        for _, rel_row in related_codes.iterrows():
+            related_codes_placeholder.text(f"{rel_row['RelatedMasterFormatCodes']} - {rel_row['Description']}")
+
+# If no code is selected yet, prompt the user
+if not selected_uni_format_code:
+    related_codes_placeholder.subheader("Select a UniFormat code from the list above")
