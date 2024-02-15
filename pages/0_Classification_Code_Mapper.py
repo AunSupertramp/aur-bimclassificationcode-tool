@@ -1,41 +1,42 @@
 import streamlit as st
 import pandas as pd
 
-# Load your data
-uni_format_df = pd.read_csv('UniFormat_MasterFormat.csv')
-master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
+# Function to load data
+def load_data():
+    uni_format_df = pd.read_csv('UniFormat_MasterFormat.csv')
+    master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
+    merged_df = uni_format_df.merge(master_format_df, left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
+    return uni_format_df.drop_duplicates(), merged_df
 
-# Normalize the RelatedMasterFormatCodes column to have a single code per row
-uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
-uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
-uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.strip()
-
-# Merge the dataframes on the MasterFormat codes
-merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
+# Load the data
+uni_format_df, merged_df = load_data()
 
 # Streamlit UI layout
 st.title("BIM QTO Tools - Code Mapper")
 
-# Display UniFormat codes and descriptions in a table
+# Interactive table for UniFormat selection
 st.subheader("UniFormat Codes")
-unique_uni_codes = uni_format_df[['UniFormatCode', 'Description']].drop_duplicates().reset_index(drop=True)
+# Display the dataframe
+st.dataframe(uni_format_df.style.applymap(lambda _: 'background-color: lightgrey', subset=['UniFormatCode']))
 
-# Create an empty placeholder for displaying related codes
-related_codes_placeholder = st.empty()
+# Placeholder for related MasterFormat codes
+related_placeholder = st.empty()
 
-# Variable to store the selected UniFormat code
-selected_uni_format_code = None
+# Session state to store the selected UniFormat code
+if 'selected_uni_format_code' not in st.session_state:
+    st.session_state['selected_uni_format_code'] = None
 
-# Display buttons for each UniFormat code to allow for selection
-for index, row in unique_uni_codes.iterrows():
-    if st.button(f"{row['UniFormatCode']} - {row['Description']}", key=f"btn_{index}"):
-        selected_uni_format_code = row['UniFormatCode']
-        related_codes_placeholder.subheader(f"Related MasterFormat Codes for {selected_uni_format_code}:")
-        # Filter the data for the selected UniFormat code
-        related_codes = merged_df[merged_df['UniFormatCode'] == selected_uni_format_code]
-        for _, rel_row in related_codes.iterrows():
-            related_codes_placeholder.text(f"{rel_row['RelatedMasterFormatCodes']} - {rel_row['Description']}")
+# Function to set the selected UniFormat code and display related MasterFormat codes
+def show_related_master_format(uniformat_code):
+    st.session_state['selected_uni_format_code'] = uniformat_code
+    related_placeholder.write(f"Related MasterFormat Codes for {uniformat_code}:")
+    related_codes = merged_df[merged_df['UniFormatCode'] == uniformat_code]
+    related_placeholder.write(related_codes)
 
-# If no code is selected yet, prompt the user
-if not selected_uni_format_code:
-    related_codes_placeholder.subheader("Select a UniFormat code from the list above")
+# Buttons for each UniFormat code
+for uniformat_code in uni_format_df['UniFormatCode'].unique():
+    st.button(f"Select {uniformat_code}", on_click=show_related_master_format, args=(uniformat_code,))
+
+# Display related MasterFormat codes if a UniFormat code is selected
+if st.session_state['selected_uni_format_code']:
+    show_related_master_format(st.session_state['selected_uni_format_code'])
