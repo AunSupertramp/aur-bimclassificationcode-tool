@@ -1,32 +1,41 @@
 import streamlit as st
 import pandas as pd
 
-# Function to load data
-def load_data():
+# Function to load and prepare data
+def load_and_prepare_data():
+    # Assuming your csv files are named 'UniFormat_MasterFormat.csv' and 'MasterFormat_Descriptions.csv'
     uni_format_df = pd.read_csv('UniFormat_MasterFormat.csv')
     master_format_df = pd.read_csv('MasterFormat_Descriptions.csv')
-    return uni_format_df, master_format_df
 
-uni_format_df, master_format_df = load_data()
+    # Normalize and merge
+    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
+    uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
+    merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
+    return merged_df
 
-# Layout the sidebar with UniFormat selection
-st.sidebar.title("UniFormat Codes")
-# Assuming the 'UniFormatCode' column contains unique values
-uni_format_selection = st.sidebar.selectbox("Choose a UniFormat Code", uni_format_df['UniFormatCode'].unique())
+# Load the data
+data = load_and_prepare_data()
 
-# Main area
-st.title("Welcome to BIM QTO Tools")
-st.markdown("## Related MasterFormat Codes")
+# Streamlit UI layout
+st.title("BIM QTO Tools")
 
-# Find related MasterFormat codes
-selected_uni_format = uni_format_df[uni_format_df['UniFormatCode'] == uni_format_selection]
-related_codes = selected_uni_format['RelatedMasterFormatCodes'].iloc[0].split(';')
+# Column layout for UniFormat selection and Related codes display
+col1, col2 = st.columns([1, 2])
 
-# Display related codes and descriptions
-if related_codes:
-    for code in related_codes:
-        # Assuming there's one row per MasterFormatCode in the master_format_df
-        description = master_format_df[master_format_df['MasterFormatCode'] == code.strip()]['Description'].iloc[0]
-        st.markdown(f"**{code.strip()}**: {description}")
-else:
-    st.write("No related MasterFormat codes found.")
+# Column for UniFormat Code selection
+with col1:
+    st.header("UniFormat")
+    selected_uni_format = st.selectbox("Choose a UniFormat Code", data['UniFormatCode'].unique())
+
+# Column for displaying related MasterFormat codes
+with col2:
+    st.header("Related MasterFormat Codes")
+    if st.button('Show Related Codes'):
+        # Filter data for selected UniFormat code
+        filtered_data = data[data['UniFormatCode'] == selected_uni_format]
+        if not filtered_data.empty:
+            for _, row in filtered_data.iterrows():
+                st.text(f"{row['RelatedMasterFormatCodes']} - {row['Description']}")
+        else:
+            st.write("No related MasterFormat codes found.")
+
