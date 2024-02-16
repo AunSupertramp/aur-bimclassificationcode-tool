@@ -1,27 +1,43 @@
 import streamlit as st
 import pandas as pd
 
-@st.cache
-def load_data():
-    # Dummy data loading function
-    data = pd.DataFrame({
-        'UniFormatCode': ['A1010', 'A1020', 'A1030'],
-        'Description': ['Foundation', 'Structural Frame', 'Exterior Walls']
-    })
-    return data
+# Function to load and merge data
+def load_and_prepare_data(uni_format_file, master_format_file):
+    # Load CSV files
+    uni_format_df = pd.read_csv(uni_format_file)
+    master_format_df = pd.read_csv(master_format_file)
+    
+    # Normalize the RelatedMasterFormatCodes column to have a single code per row
+    uni_format_df['RelatedMasterFormatCodes'] = uni_format_df['RelatedMasterFormatCodes'].str.split(';')
+    uni_format_df = uni_format_df.explode('RelatedMasterFormatCodes').reset_index(drop=True)
+    
+    # Merge the dataframes on the MasterFormat codes
+    merged_df = pd.merge(uni_format_df, master_format_df, how='left', left_on='RelatedMasterFormatCodes', right_on='MasterFormatCode')
+    return merged_df
 
-data = load_data()
+# Load and prepare data
+data = load_and_prepare_data('UniFormat_MasterFormat.csv', 'MasterFormat_Descriptions.csv')
 
-# Display a static table
-st.write("UniFormat Codes and Descriptions")
-st.dataframe(data)
+# Streamlit UI
+st.title('UniFormat to MasterFormat Mapper')
 
-# Placeholder for displaying related MasterFormat codes
-related_codes_placeholder = st.empty()
+# Display UniFormat codes with descriptions for selection
+uni_format_options = data[['UniFormatCode', 'Description_x']].drop_duplicates()
+selected_uni_format = st.selectbox('Select a UniFormat Code', options=uni_format_options.apply(lambda x: f"{x['UniFormatCode']} - {x['Description_x']}", axis=1))
 
-# Display buttons for each UniFormat code
-for index, row in data.iterrows():
-    if st.button(f"Select {row['UniFormatCode']}", key=row['UniFormatCode']):
-        # This is where you'd fetch and display the related MasterFormat codes
-        # Here we're just displaying a placeholder message
-        related_codes_placeholder.write(f"Related MasterFormat Codes for {row['UniFormatCode']} would be displayed here.")
+# Extract the selected UniFormat code
+selected_code = selected_uni_format.split(' - ')[0]
+
+# Filter data for selected UniFormat code
+filtered_data = data[data['UniFormatCode'] == selected_code]
+
+if not filtered_data.empty:
+    st.subheader('Related MasterFormat Codes and Descriptions:')
+    # Group by UniFormatCode to get a list of related MasterFormat codes and descriptions
+    grouped = filtered_data.groupby('UniFormatCode')
+    for name, group in grouped:
+        st.write(f"UniFormat {name}: {group.iloc[0]['Description_x']}")
+        for _, row in group.iterrows():
+            st.text(f"{row['RelatedMasterFormatCodes']} - {row['Description_y']}")
+else:
+    st.write("No related MasterFormat codes found for the selected UniFormat code.")
