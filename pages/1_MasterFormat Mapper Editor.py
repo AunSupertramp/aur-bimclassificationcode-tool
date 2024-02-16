@@ -4,8 +4,7 @@ import pandas as pd
 # Load your data
 @st.cache(allow_output_mutation=True)
 def load_data(file_path):
-    data = pd.read_csv(file_path)
-    return data
+    return pd.read_csv(file_path)
 
 # Save the modified data back to the CSV
 def save_data(file_path, data):
@@ -20,20 +19,15 @@ data = load_data(file_path)
 # Streamlit UI
 st.title('UniFormat to MasterFormat Editor')
 
-# Display DataFrame in edit mode
+# Display the data editor
 st.subheader('Edit Data')
-edited_data = st.text_area("Edit the data in CSV format:", data.to_csv(index=False))
+edited_data = st.data_editor(data)
 
-# Parse the edited data back to a DataFrame and save it
+# Button to save the changes made using the data editor
 if st.button('Save Changes'):
-    # Attempt to parse the edited data
-    try:
-        data = pd.read_csv(pd.StringIO(edited_data))
-        save_data(file_path, data)
-        st.success('Data saved successfully!')
-    except Exception as e:
-        st.error(f'An error occurred:\n{e}')
+    save_data(file_path, edited_data)
+    st.success('Data saved successfully!')
 
-# Display the DataFrame
+# Display the current data below the editor for reference
 st.subheader('Current Data')
 st.write(data)
