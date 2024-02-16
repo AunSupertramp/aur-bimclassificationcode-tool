@@ -33,11 +33,11 @@ filtered_data = data[data['UniFormatCode'] == selected_code]
 
 if not filtered_data.empty:
     st.subheader('Related MasterFormat Codes and Descriptions:')
-    # Group by UniFormatCode to get a list of related MasterFormat codes and descriptions
-    grouped = filtered_data.groupby('UniFormatCode')
-    for name, group in grouped:
-        st.write(f"UniFormat {name}: {group.iloc[0]['Description_x']}")
-        for _, row in group.iterrows():
-            st.text(f"{row['RelatedMasterFormatCodes']} - {row['Description_y']}")
+    
+    # Create a new dataframe for display
+    display_df = filtered_data[['RelatedMasterFormatCodes', 'Description_y']].rename(columns={'Description_y': 'Description'}).drop_duplicates()
+    
+    # Display the dataframe using st.dataframe
+    st.dataframe(display_df)
 else:
     st.write("No related MasterFormat codes found for the selected UniFormat code.")
