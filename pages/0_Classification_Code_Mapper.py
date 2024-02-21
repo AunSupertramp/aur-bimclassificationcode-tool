@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-# Function to load and merge data
+# Function to load and prepare data
 def load_and_prepare_data(uni_format_file, master_format_file):
     # Load CSV files
     uni_format_df = pd.read_csv(uni_format_file)
@@ -21,20 +21,16 @@ data = load_and_prepare_data('UniFormat_MasterFormat.csv', 'MasterFormat_Descrip
 # Streamlit UI
 st.title('UniFormat to MasterFormat Mapper')
 
-# Determine which UniFormat codes have related MasterFormat codes
-uni_format_with_related = data.groupby('UniFormatCode').apply(lambda x: x['RelatedMasterFormatCodes'].notna().any())
-
-# Create the selection options with an indication of related MasterFormat codes
-selection_options = [
-    f"{'**' if uni_format_with_related[code] else ''}{code} - {desc}{'**' if uni_format_with_related[code] else ''}"
-    for code, desc in zip(data['UniFormatCode'].unique(), data['Description_x'].unique())
-]
+# Check which UniFormat codes have related MasterFormat codes
+related = data.groupby('UniFormatCode')['RelatedMasterFormatCodes'].count() > 0
 
 # Display UniFormat codes with descriptions for selection
-selected_uni_format = st.selectbox('Select a UniFormat Code', options=selection_options)
+uni_format_options = data[['UniFormatCode', 'Description_x']].drop_duplicates().reset_index(drop=True)
+uni_format_options['label'] = uni_format_options.apply(lambda x: f"{x['UniFormatCode']} - {x['Description_x']} {'(Related Codes Available)' if related[x['UniFormatCode']] else ''}", axis=1)
+selected_uni_format = st.selectbox('Select a UniFormat Code', options=uni_format_options['label'])
 
 # Extract the selected UniFormat code
-selected_code = selected_uni_format.split(' - ')[0].strip('*')
+selected_code = selected_uni_format.split(' - ')[0]
 
 # Filter data for selected UniFormat code
 filtered_data = data[data['UniFormatCode'] == selected_code]
@@ -45,7 +41,7 @@ if not filtered_data.empty:
     # Create a new dataframe for display
     display_df = filtered_data[['RelatedMasterFormatCodes', 'Description_y']].rename(columns={'Description_y': 'Description'}).drop_duplicates()
     
-    # Display the dataframe using st.dataframe
-    st.dataframe(display_df)
+    # Display the dataframe as a table
+    st.table(display_df)
 else:
     st.write("No related MasterFormat codes found for the selected UniFormat code.")
