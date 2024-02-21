@@ -21,12 +21,20 @@ data = load_and_prepare_data('UniFormat_MasterFormat.csv', 'MasterFormat_Descrip
 # Streamlit UI
 st.title('UniFormat to MasterFormat Mapper')
 
+# Determine which UniFormat codes have related MasterFormat codes
+uni_format_with_related = data.groupby('UniFormatCode').apply(lambda x: x['RelatedMasterFormatCodes'].notna().any())
+
+# Create the selection options with an indication of related MasterFormat codes
+selection_options = [
+    f"{'**' if uni_format_with_related[code] else ''}{code} - {desc}{'**' if uni_format_with_related[code] else ''}"
+    for code, desc in zip(data['UniFormatCode'].unique(), data['Description_x'].unique())
+]
+
 # Display UniFormat codes with descriptions for selection
-uni_format_options = data[['UniFormatCode', 'Description_x']].drop_duplicates()
-selected_uni_format = st.selectbox('Select a UniFormat Code', options=uni_format_options.apply(lambda x: f"{x['UniFormatCode']} - {x['Description_x']}", axis=1))
+selected_uni_format = st.selectbox('Select a UniFormat Code', options=selection_options)
 
 # Extract the selected UniFormat code
-selected_code = selected_uni_format.split(' - ')[0]
+selected_code = selected_uni_format.split(' - ')[0].strip('*')
 
 # Filter data for selected UniFormat code
 filtered_data = data[data['UniFormatCode'] == selected_code]
